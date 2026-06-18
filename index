@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Boom Slingers Clone</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script src="game.js"></script>
+</body>
+</html>
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    physics: {
+        default: 'arcade',
+        arcade: { gravity: { y: 300 } }
+    },
+    scene: {
+        preload: preload,
+        create: create
+    }
+};
+
+const game = new Phaser.Game(config);
+
+function preload() {
+    // Tải hình ảnh nhân vật và boom tại đây
+}
+
+function create() {
+    // Thiết lập bản đồ và người chơi
+    this.add.text(100, 100, 'Chào mừng đến với Boom Slingers!', { fill: '#0f0' });
+}
