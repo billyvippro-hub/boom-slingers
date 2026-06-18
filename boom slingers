@@ -1,0 +1,356 @@
+figma.showUI(__html__, { width: 310, height: 320 });
+
+figma.ui.onmessage = (msg) => {
+  if (msg.type === 'launch-sling') {
+    let { vx, vy } = msg;
+    
+    const character = figma.createEllipse();
+    character.name = "🚀_Boom_Slinger_Siêu_Cấp";
+    character.resize(36, 36);
+    
+    // Lấy tọa độ hiện tại của góc màn hình sếp đang nhìn để thả bom cho chuẩn, không lo lệch map
+    let posX = figma.viewport.center.x - 100;
+    let posY = figma.viewport.center.y + 100;
+    
+    character.x = posX;
+    character.y = posY;
+    character.fills = [{ type: 'SOLID', color: { r: 0, g: 0.8, b: 1 } }]; // Màu xanh hi vọng không tự hủy
+
+    const gravity = 0.55; 
+    let tickCount = 0; // Bộ đếm thời gian bay bằng cơm
+    
+    // Vạch đất động = Vị trí xuất phát + 350px xuống dưới
+    const groundLevel = posY + 350; 
+
+    const engineLoop = setInterval(() => {
+      posX += vx;
+      posY += vy;
+      vy += gravity; 
+
+      character.x = posX;
+      character.y = posY;
+      tickCount++; // Tăng thời gian sống sót lên nào
+
+      // ĐIỀU KIỆN KÍCH NỔ AN TOÀN: 
+      // Phải bay được hơn 15 ticks (tầm 0.3 giây bảo hộ) THÌ mới xét điều kiện chạm đất!
+      if (tickCount > 15 && (posY >= groundLevel || tickCount > 180)) {
+        clearInterval(engineLoop);
+
+        // Tạo vụ nổ bốc lửa cháy phố
+        const boom = figma.createEllipse();
+        boom.name = "💥_BÙM_CHÍU_CHÍU!!!";
+        boom.resize(110, 110);
+        boom.x = posX - 37;
+        boom.y = posY - 37;
+        boom.fills = [{ type: 'SOLID', color: { r: 1, g: 0.3, b: 0 } }];
+
+        // Tiễn vong nhân vật cũ
+        character.remove();
+        
+        figma.notify("Hạ cánh an toàn và nổ tung mục tiêu! 🎯");
+      }
+    }, 20); 
+  }
+};<style>
+  body { font-family: 'Inter', sans-serif; padding: 15px; background: #111214; color: #fff; text-align: center; margin: 0; }
+  h3 { color: #00f5d4; margin: 10px 0; font-size: 16px; letter-spacing: 1px; }
+  #gameCanvas { background: #1e1e24; border: 2px dashed #444; border-radius: 12px; cursor: grab; touch-action: none; }
+  #gameCanvas:active { cursor: grabbing; }
+  .instructions { font-size: 11px; color: #aaa; margin-top: 10px; font-style: italic; }
+</style>
+
+<h3>BOOM SLINGERS - NO SUICIDE 🛡️</h3>
+<canvas id="gameCanvas" width="280" height="220"></canvas>
+<div class="instructions">🚀 Kéo lùi chấm đỏ ra sau để lấy đà bắn về phía trước!</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const centerX = 140;
+  const centerY = 140;
+  let slingX = centerX;
+  let slingY = centerY;
+  let isDragging = false;
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Vẽ lưới hack game
+    ctx.strokeStyle = '#2a2b36';
+    ctx.lineWidth = 1;
+    for(let i=0; i<canvas.width; i+=20) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+    }
+
+    if (isDragging) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#00f5d4'; // Đường ngắm laser xanh chanh sả
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      
+      const targetX = centerX + (centerX - slingX);
+      const targetY = centerY + (centerY - slingY);
+      
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(targetX, targetY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(slingX, slingY, 14, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff4757';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    if (Math.hypot(mouseX - slingX, mouseY - slingY) < 25) {
+      isDragging = true;
+    }
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const rect = canvas.getBoundingClientRect();
+    let mouseX = e.clientX - rect.left;
+    let mouseY = e.clientY - rect.top;
+
+    const dist = Math.hypot(mouseX - centerX, mouseY - centerY);
+    if (dist > 80) {
+      const angle = Math.atan2(mouseY - centerY, mouseX - centerX);
+      mouseX = centerX + Math.cos(angle) * 80;
+      mouseY = centerY + Math.sin(angle) * 80;
+    }
+
+    slingX = mouseX;
+    slingY = mouseY;
+    draw();
+  });
+
+  window.addEventListener('pointerup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+
+    // Tính lực phóng (Kéo càng căng, Vector phản lực càng mạnh)
+    const vx = (centerX - slingX) * 0.28; 
+    const vy = (centerY - slingY) * 0.28;
+
+    if (Math.hypot(vx, vy) > 1) {
+      parent.postMessage({ pluginMessage: { type: 'launch-sling', vx, vy } }, '*');
+    }
+
+    slingX = centerX;
+    slingY = centerY;
+    draw();
+  });
+
+  draw();
+</script><style>
+  body { font-family: 'Inter', sans-serif; padding: 15px; background: #0c0d10; color: #fff; text-align: center; margin: 0; }
+  h3 { color: #ff007f; margin: 5px 0 15px 0; font-size: 16px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255,0,127,0.5); }
+  #gameCanvas { background: #14151f; border: 2px solid #ff007f; border-radius: 16px; cursor: grab; touch-action: none; box-shadow: 0 0 15px rgba(255, 0, 127, 0.2); }
+  #gameCanvas:active { cursor: grabbing; }
+  .status { font-size: 12px; color: #00f5d4; margin-top: 10px; font-weight: bold; }
+</style>
+
+<h3>BOOM SLINGER PRO MAX 🚀</h3>
+<canvas id="gameCanvas" width="280" height="240"></canvas>
+<div class="status">⚡ CHẾ ĐỘ: NGẮM BẮN LASER ĐÃ KÍCH HOẠT</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const centerX = 140;
+  const centerY = 160; // Dời bệ phóng xuống tí cho góc bắn rộng
+  let slingX = centerX;
+  let slingY = centerY;
+  let isDragging = false;
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Vẽ background Grid Cyberpunk
+    ctx.strokeStyle = '#1e1f29';
+    ctx.lineWidth = 1;
+    for(let i=0; i<canvas.width; i+=20) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+    }
+
+    // Nếu đang kéo gồng lực -> Vẽ đường dự đoán quỹ đạo (Trajectory Preview)
+    if (isDragging) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#00f5d4';
+      ctx.lineWidth = 3;
+      
+      // Tính vector vận tốc giả lập
+      const vx = (centerX - slingX) * 0.28;
+      const vy = (centerY - slingY) * 0.28;
+      
+      // Chạy một vòng lặp ảo để vẽ trước đường cong Parabol
+      let simX = centerX;
+      let simY = centerY;
+      let simVy = vy;
+      const gravity = 0.55;
+
+      ctx.beginPath();
+      ctx.moveTo(simX, simY);
+      
+      for (let i = 0; i < 30; i++) { // Vẽ trước 30 bước đi của tương lai
+        simX += vx;
+        simY += simVy;
+        simVy += gravity;
+        
+        // Vẽ nét đứt cho chanh sả
+        if (i % 2 === 0) {
+          ctx.lineTo(simX, simY);
+        } else {
+          ctx.moveTo(simX, simY);
+        }
+      }
+      ctx.stroke();
+    }
+
+    // Vẽ bệ phóng súng cao su
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff007f';
+    ctx.fill();
+
+    // Vẽ dây thun co giãn khi kéo
+    if (isDragging) {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 4;
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(slingX, slingY);
+      ctx.stroke();
+    }
+
+    // Vẽ quả bom đỏ rực chuẩn bị phóng
+    ctx.beginPath();
+    ctx.arc(slingX, slingY, 12, 0, Math.PI * 2);
+    ctx.fillStyle = isDragging ? '#00f5d4' : '#ff4757';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    if (Math.hypot(mouseX - slingX, mouseY - slingY) < 25) {
+      isDragging = true;
+    }
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const rect = canvas.getBoundingClientRect();
+    let mouseX = e.clientX - rect.left;
+    let mouseY = e.clientY - rect.top;
+
+    // Giới hạn khoảng cách kéo tối đa 90px
+    const dist = Math.hypot(mouseX - centerX, mouseY - centerY);
+    if (dist > 90) {
+      const angle = Math.atan2(mouseY - centerY, mouseX - centerX);
+      mouseX = centerX + Math.cos(angle) * 90;
+      mouseY = centerY + Math.sin(angle) * 90;
+    }
+
+    slingX = mouseX;
+    slingY = mouseY;
+    draw();
+  });
+
+  window.addEventListener('pointerup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const vx = (centerX - slingX) * 0.28; 
+    const vy = (centerY - slingY) * 0.28;
+
+    if (Math.hypot(vx, vy) > 1) {
+      // Bắn thẳng sang Figma
+      parent.postMessage({ pluginMessage: { type: 'super-launch', vx, vy } }, '*');
+    }
+
+    slingX = centerX;
+    slingY = centerY;
+    draw();
+  });
+
+  draw();
+</script>figma.showUI(__html__, { width: 310, height: 340 });
+
+// Tự động tạo một cái "Mặt Đất" trên Figma Canvas nếu chưa có để làm chỗ va chạm
+let ground = figma.currentPage.findOne(node => node.name === "=== MẶT_ĐẤT_BOOM_SLINGER ===");
+if (!ground) {
+  ground = figma.createRectangle();
+  ground.name = "=== MẶT_ĐẤT_BOOM_SLINGER ===";
+  ground.resize(1000, 40);
+  ground.x = figma.viewport.center.x - 500;
+  ground.y = figma.viewport.center.y + 250; // Đặt mặt đất nằm bên dưới
+  ground.fills = [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.25 } }];
+}
+
+figma.ui.onmessage = (msg) => {
+  if (msg.type === 'super-launch') {
+    let { vx, vy } = msg;
+    
+    // Tạo nhân vật Slinger ngay tại vị trí xuất phát phía trên mặt đất
+    const slinger = figma.createEllipse();
+    slinger.name = "💣_Bom_Cảm_Tử";
+    slinger.resize(32, 32);
+    slinger.x = figma.viewport.center.x - 200;
+    slinger.y = ground.y - 300; // Xuất phát từ trên cao rơi xuống
+    slinger.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0.5 } }];
+
+    const gravity = 0.55;
+    let ticks = 0;
+
+    const loop = setInterval(() => {
+      slinger.x += vx;
+      slinger.y += vy;
+      vy += gravity; // Trọng lực vật lý chân thực
+      ticks++;
+
+      // THUẬT TOÁN KIỂM TRA VA CHẠM (AABB Collision)
+      // Nếu tọa độ Y của bom chạm vào bề mặt của Ground Layer
+      if (slinger.y + 32 >= ground.y && slinger.x >= ground.x && slinger.x <= ground.x + 1000) {
+        clearInterval(loop);
+
+        // Tạo hiệu ứng nổ banh xác
+        const explosion = figma.createEllipse();
+        explosion.name = "💥 BÙM CHÍU ĐỈNH NÓC!!!";
+        explosion.resize(120, 120);
+        explosion.x = slinger.x - 44;
+        explosion.y = ground.y - 60; // Nổ ngay trên mặt đất
+        explosion.fills = [{ type: 'SOLID', color: { r: 1, g: 0.9, b: 0 } }];
+
+        slinger.remove();
+        figma.notify("Va chạm mặt đất! Nổ tung quá chanh sả sếp ơi! 🔥");
+      }
+
+      // Giới hạn nếu bay hụt map ra ngoài vũ trụ quá lâu thì tự hủy an toàn
+      if (ticks > 200) {
+        clearInterval(loop);
+        slinger.remove();
+      }
+    }, 20);
+  }
+};
